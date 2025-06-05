@@ -17,9 +17,7 @@ struct MapListViewItem: View {
     var body: some View {
         VStack {
             HStack {
-                Text(location.displayName)
-                    .bold()
-                    .foregroundStyle(Color.primary)
+                TitleLink(location: location)
                 Spacer()
                 FilterButton(location: location, filter: $filter)
                 FavoritesButton(location: location)

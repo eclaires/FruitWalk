@@ -15,9 +15,7 @@ struct FruitDetailsButtonBar: View {
     
     var body: some View {
         HStack(alignment: .top) {
-            Text(location.displayName)
-                .multilineTextAlignment(.leading)
-                .bold()
+            TitleLink(location: location)
             Spacer()
             FilterButton(location: location, filter: $filter)
             Button {

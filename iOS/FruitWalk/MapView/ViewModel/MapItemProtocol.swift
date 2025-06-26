@@ -10,6 +10,7 @@ import MapKit
 import SwiftUI
 
 protocol MapItem {
+    var displayName: String { get }
     var identifier: Int { get }
     var coordinate: CLLocationCoordinate2D { get }
 

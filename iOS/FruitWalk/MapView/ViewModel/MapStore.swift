@@ -12,15 +12,15 @@ import MapKit
 
 @MainActor @Observable class MapStore {
     
-    var data = MapData(locations: [FruitLocation](), clusters: [FruitCluster](), identifier: MapRequestId())
+    var data = MapData(locations: [FruitLocation](), clusters: [FruitCluster](), requestRegion: nil)
     
     @ObservationIgnored private let session: URLSession!
     @ObservationIgnored private let decoder = JSONDecoder()
     
     // create a data manager to decide how to cache...
     @ObservationIgnored private var cache = MapDataCache()
-
-    @ObservationIgnored private var mapRequestId: MapRequestId?
+    // the reqion we are requesting data for
+    @ObservationIgnored private var requestRegion: MapRegion?
     
     init() {
         let configuration = URLSessionConfiguration.default
@@ -34,57 +34,68 @@ import MapKit
             await loadFriutLocations(for: region)
         }
     }
-    
-    func fetchLocationDetails(for: FruitLocation) -> LocationDetails? {
-        
-        return nil
+
+    private func checkIfLoadingOrLoaded(for region: MapRegion) -> Bool {
+        if let requestRegion = self.requestRegion, requestRegion.zoom == region.zoom, requestRegion.bounds.contains(region.bounds) {
+            print("    ---- RETURNING EARLY zoom \(region.zoom) already REQUESTED")
+            return true
+        }
+        if let requestRegion = data.requestRegion, requestRegion.zoom == region.zoom, requestRegion.bounds.contains(region.bounds) {
+            print("    ---- RETURNING EARLY zoom \(region.zoom) already RETURNED")
+            return true
+        }
+        return false
     }
     
     private func loadFriutLocations(for region: MapRegion) async {
-        print("THREAD loadFriutLocations: " + String(cString: __dispatch_queue_get_label(nil)))
         if checkIfLoadingOrLoaded(for: region) {
             return
         }
         
         let searchRegion = region.multiplyBy(screenMultiplier: 1.5)
-        
-        // build the request identifier before any async call
-        // the requiest identifier is used if the same request is made before the first returns
-        let url = buildLocationsRequestURL(bounds: searchRegion.bounds)
-        let mapRequestIdentifier = MapRequestId(zoom: Int(searchRegion.zoom), bounds: searchRegion.bounds)
-        self.mapRequestId = mapRequestIdentifier
-        
+        // set self.requestRegion before async cache lookup below in case checkIfLoadingOrLoaded above is called again
+        self.requestRegion = searchRegion
+
         do {
-            if let data = await cache.getLocations(forCoordinates: region.bounds, at: region.zoom) {
-                print("    ---- SETTING cached Locations and RETURN")
-                // create a request identifier for what this data represents
-                let identifier = MapRequestId(zoom: Int(searchRegion.zoom), bounds: data.bounds)
-                self.data = MapData(locations: data.locations, clusters: [FruitCluster](), identifier: identifier)
-                // not requesting after all
-                self.mapRequestId = nil
+            // first see if the expanded search region is cached, if not see if the requested region is cached
+            if let data = await cache.getLocations(forCoordinates: region.bounds, at: searchRegion.zoom) {
+                print("    ---- SETTING cached Locations for SEARCH REGION and RETURN")
+                self.data = MapData(locations: data.locations, clusters: [FruitCluster](), requestRegion: searchRegion)
+                self.requestRegion = nil
+                return
+            } else if let data = await cache.getLocations(forCoordinates: region.bounds, at: region.zoom) {
+                print("    ---- SETTING cached Locations for Requested REGION and RETURN")
+                self.data = MapData(locations: data.locations, clusters: [FruitCluster](), requestRegion: region)
+                self.requestRegion = nil
                 return
             }
             
-            print("---- REQUESTING FRUIT!!! for zoom: \(searchRegion.zoom)")
+            let url = buildLocationsRequestURL(from: searchRegion)
+            
+            print("---- REQUESTING FRUIT!!! for zoom: \(searchRegion.zoom), search size: \(searchRegion.size)")
             print("THREAD FruitStore.loadFriutLocations: " + String(cString: __dispatch_queue_get_label(nil)))
             
-            let (data, response) = try await session.data(from: url)
-            handleError(data, response)
+            let result: Result<[FruitLocation], APIError> = await APIService.shared.request(
+                url: url,
+                responseType: [FruitLocation].self
+            )
             
-            let fruitLocations = try decoder.decode([FruitLocation].self, from: data)
-            // if we still want this data
-            if self.mapRequestId == mapRequestIdentifier {
-                print("    ---- SETTING FRUIT locations - count \(fruitLocations.count)")
-                await cache.store(locations: fruitLocations, for: searchRegion.bounds, at: searchRegion.zoom )
-                self.data = MapData(locations: fruitLocations, clusters: [FruitCluster](), identifier: mapRequestIdentifier)
-                
-                self.mapRequestId = nil
-            } else {
-                print("    ---- NOT ASSIGNING  and storing FRUIT")
+            switch result {
+            case .success(let fruitLocations):
+                // if we still want this data
+                if self.requestRegion == searchRegion {
+                    print("    ---- SETTING FRUIT locations - count \(fruitLocations.count)")
+                    await cache.store(locations: fruitLocations, for: searchRegion.bounds, at: searchRegion.zoom )
+                    self.data = MapData(locations: fruitLocations, clusters: [FruitCluster](), requestRegion: searchRegion)
+                    
+                    self.requestRegion = nil
+                } else {
+                    print("    ---- NOT ASSIGNING  and storing FRUIT")
+                }
+            case .failure(let error):
+                // TODO: pass to the UI
+                print(error)
             }
-            
-        } catch {
-            print(error)
         }
     }
     
@@ -97,53 +108,104 @@ import MapKit
         
         // build the request identifier before any async call
         // the requiest identifier is used if the same request is made before the first returns
-        let url = buildClustersRequest(bounds: searchRegion.bounds, zoom: Int(searchRegion.zoom))
-        let mapRequestId = MapRequestId(zoom: Int(searchRegion.zoom), bounds: searchRegion.bounds)
-        self.mapRequestId =  mapRequestId
+        let url = buildClustersRequest(from: searchRegion)
+        self.requestRegion = searchRegion
         
         do {
-            if let data = await cache.getClusters(for: region.bounds, at: Int(region.zoom)) {
+            // first see if the expanded search region is cached, if not see if the requested region is cached
+            if let data = await cache.getClusters(for: searchRegion.bounds, at: Int(searchRegion.zoom)) {
                 print("    ---- SETTING cached clusters and RETURN")
-                // create a request identifier for what this data represents
-                let identifier = MapRequestId(zoom: Int(searchRegion.zoom), bounds: data.bounds)
-                self.data = MapData(locations: [FruitLocation](), clusters: data.clusters, identifier: identifier)
+                self.data = MapData(locations: [FruitLocation](), clusters: data.clusters, requestRegion: searchRegion)
                 // not requesting after all
-                self.mapRequestId = nil
+                self.requestRegion = nil
+                return
+            } else if let data = await cache.getClusters(for: region.bounds, at: Int(region.zoom)) {
+                print("    ---- SETTING cached clusters and RETURN")
+                self.data = MapData(locations: [FruitLocation](), clusters: data.clusters, requestRegion: region)
+                // not requesting after all
+                self.requestRegion = nil
                 return
             }
             
             print("---- REQUESTING CLUSTERS FOR zoom \(searchRegion.zoom)")
+            let result: Result<[FruitCluster], APIError> = await APIService.shared.request(
+                url: url,
+                responseType: [FruitCluster].self
+            )
             
-            let (data, response) = try await session.data(from: url)
-            handleError(data, response)
-            
-            let clusters = try decoder.decode([FruitCluster].self, from: data)
-            // if we still want this data set it in the observed variable
-            if self.mapRequestId == mapRequestId {
-                print("     ---- STORING AND SETTING CLUSTERS - count \(clusters.count)")
-                await cache.store(clusters: clusters, within: searchRegion.bounds, at: searchRegion.zoom)
-                self.data = MapData(locations: [FruitLocation](), clusters: clusters, identifier: mapRequestId)
-                
-                self.mapRequestId = nil
-            } else {
-                print("     ---- NOT ASSIGNING  and storing CLUSTERS")
+            switch result {
+            case .success(let fruitClusters):
+                // if we still want this data set it in the observed variable
+                if self.requestRegion == searchRegion {
+                    print("     ---- STORING AND SETTING CLUSTERS - count \(fruitClusters.count)")
+                    await cache.store(clusters: fruitClusters, within: searchRegion.bounds, at: searchRegion.zoom)
+                    self.data = MapData(locations: [FruitLocation](), clusters: fruitClusters, requestRegion: searchRegion)
+                    
+                    self.requestRegion = nil
+                } else {
+                    print("     ---- NOT ASSIGNING  and storing CLUSTERS")
+                }
+            case .failure(let error):
+                // TODO: pass to the UI
+                print(error)
             }
-        } catch {
-            print(error)
         }
     }
     
-    private func buildLocationsRequestURL(bounds: MapBounds) -> URL {
-        let bounds = "bounds=\(bounds.swLat),\(bounds.swLng)|\(bounds.neLat),\(bounds.neLng)"
-        let urlString = Locations_URL_Beta + "?api_key=AKDJGHSD&locale=en&muni=true&limit=300&" + bounds
-        let url = URL(string: urlString, encodingInvalidCharacters: true)
+    func getFruitLocationDetails(for identifier: Int) async -> (details: LocationDetails?, error: String?) {
+        let url = buildLocationDetailsRequest(for: identifier)
+        let result: Result<LocationDetails, APIError> = await APIService.shared.request(
+            url: url,
+            responseType: LocationDetails.self
+        )
+        
+        switch result {
+        case .success(let details):
+            return(details, nil)
+        case .failure(let error):
+            // TODO: pass to the UI
+            return(nil, error.localizedDescription)
+        }
+    }
+    
+    private func buildClustersRequest(from region: MapRegion) -> URL {
+        let bounds = "\(region.bounds.swLat),\(region.bounds.swLng)|\(region.bounds.neLat),\(region.bounds.neLng)"
+    
+        let url = URLBuilder(baseURL: URLS.base)
+            .addPathComponent(URLS.clusters)
+            .addQueryParameter(key: Query.apiKey, value: Query.apiValue)
+            .addQueryParameter(key: Query.localeKey, value: Query.localeValue)
+            .addQueryParameter(key: Query.muniKey, value: Query.muniValue)
+            .addQueryParameter(key: Query.boundsKey, value: bounds)
+            .addQueryParameter(key: Query.zoomKey, value: region.zoom.description)
+            .build()
+        
         return url!
     }
     
-    private func buildClustersRequest(bounds: MapBounds, zoom: Int) -> URL {
-        let bounds = "bounds=\(bounds.swLat),\(bounds.swLng)|\(bounds.neLat),\(bounds.neLng)"
-        let urlString = Clusters_URL_Beta + "?api_key=AKDJGHSD&muni=true&zoom=\(zoom)&" + bounds
-        let url = URL(string: urlString, encodingInvalidCharacters: true)
+    private func buildLocationsRequestURL(from region: MapRegion) -> URL {
+        let bounds = "\(region.bounds.swLat),\(region.bounds.swLng)|\(region.bounds.neLat),\(region.bounds.neLng)"
+    
+        let url = URLBuilder(baseURL: URLS.base)
+            .addPathComponent(URLS.locations)
+            .addQueryParameter(key: Query.apiKey, value: Query.apiValue)
+            .addQueryParameter(key: Query.localeKey, value: Query.localeValue)
+            .addQueryParameter(key: Query.muniKey, value: Query.muniValue)
+            .addQueryParameter(key: Query.limitKey, value: Query.limitValue)
+            .addQueryParameter(key: Query.boundsKey, value: bounds)
+            .addQueryParameter(key: Query.zoomKey, value: region.zoom.description)
+            .build()
+    
+        return url!
+    }
+    
+    private func buildLocationDetailsRequest(for identifier: Int) -> URL {
+        let url = URLBuilder(baseURL: URLS.base)
+            .addPathComponent(URLS.locations)
+            .addPathComponent(identifier.description)
+            .addQueryParameter(key: Query.apiKey, value: Query.apiValue)
+            .build()
+        
         return url!
     }
     
@@ -154,35 +216,7 @@ import MapKit
         let expandedRegion = MKCoordinateRegion(center: region.center, span: mkSpan)
         return expandedRegion.bounds()
     }
-    
-    private func handleError(_ data: Data, _ response: URLResponse) {
-        // check response code
-        guard let httpResponse = response as? HTTPURLResponse else {
-            print("not a HTTPURLResponse")
-            return
-        }
-        guard (200...299).contains(httpResponse.statusCode) else {
-            if let string = String(data: data, encoding: .utf8) {
-                // {"error":"Zoom not in interval [0, 14]"}
-                print(string)
-            }
-            return
-        }
-    }
-    
-    private func checkIfLoadingOrLoaded(for region: MapRegion) -> Bool {
-        if let mapRequestId = self.mapRequestId, mapRequestId.requestsSameData(forZoom: region.zoom, withBounds: region.bounds) {
-            print("    ---- RETURNING EARLY zoom \(region.zoom) already requested")
-            return true
-        }
-        if data.identifier.requestsSameData(forZoom: Int(region.zoom), withBounds: region.bounds) {
-            print("    ---- RETURNING EARLY zoom \(region.zoom) already returned")
-            return true
-        }
-        return false
-    }
-    
-    
+
     /*
        public func loadTypes() async {
            let urlString = "https://beta.fallingfruit.org/api/0.3/types?api_key=AKDJGHSD"
@@ -201,26 +235,5 @@ import MapKit
     */
 }
 
-extension MapStore {
-    
-    func getLocationDetails(for identifier: Int) async -> (details: LocationDetails?, error: String?) {
-        let urlString = "https://beta.fallingfruit.org/api/0.3/locations/" + String(identifier) + "?api_key=AKDJGHSD&embed=reviews"
-        let url = URL(string: urlString)
-        let configuration = URLSessionConfiguration.default
-        let session  = URLSession.init(configuration: configuration)
-        do {
-            // TODO: test response
-            let (data, response) = try await session.data(from: url!)
-            let decoder = JSONDecoder()
-            let details = try decoder.decode(LocationDetails.self, from: data)
-            return(details, nil)
-        } catch {
-            print(error)
-            // TODO: FIX ERROR
-            return(nil, error.localizedDescription)
-        }
-    }
-    
-}
 
 

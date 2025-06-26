@@ -10,7 +10,7 @@ import MapKit
 
 /// MapRegion contains zoom and coordinates used to make requests to the server which requires Web Mercator format
 /// It converts data from Apple Maps
-struct MapRegion {
+struct MapRegion: Equatable {
     let center: CLLocationCoordinate2D
     let zoom: Int
     let span: Double

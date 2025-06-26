@@ -10,5 +10,5 @@ import Foundation
 struct MapData {
     var locations: [FruitLocation]
     var clusters: [FruitCluster]
-    var identifier: MapRequestId
+    var requestRegion: MapRegion?
 }

@@ -17,7 +17,7 @@ class URLBuilder {
     private var pathComponents: [String] = []
     
     // Dictionary to store query parameters
-    private var queryParameters: [String: String] = [:]
+    fileprivate var queryParameters: [String: String] = [:]
 
     /// Initializes the URL builder with a base URL
     /// - Parameter baseURL: The root URL (without trailing slash)
@@ -67,5 +67,17 @@ class URLBuilder {
 
         // Return the final URL
         return components?.url
+    }
+}
+
+/// Adds application default parameters
+/// - Returns: The same URLBuilder instance (for chaining)
+extension URLBuilder {
+    
+    @discardableResult
+    public func addDefaultParameter() -> URLBuilder {
+        queryParameters[Query.apiKey] = Query.apiValue
+        queryParameters[Query.localeKey] = Query.localeValue
+        return self
     }
 }

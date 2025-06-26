@@ -70,7 +70,7 @@ import MapKit
                 return
             }
             
-            let url = buildLocationsRequestURL(from: searchRegion)
+            let url = URLBuilder.buildLocationsRequestURL(from: searchRegion)
             
             print("---- REQUESTING FRUIT!!! for zoom: \(searchRegion.zoom), search size: \(searchRegion.size)")
             print("THREAD FruitStore.loadFriutLocations: " + String(cString: __dispatch_queue_get_label(nil)))
@@ -108,7 +108,7 @@ import MapKit
         
         // build the request identifier before any async call
         // the requiest identifier is used if the same request is made before the first returns
-        let url = buildClustersRequest(from: searchRegion)
+        let url = URLBuilder.buildClustersRequest(from: searchRegion)
         self.requestRegion = searchRegion
         
         do {
@@ -153,7 +153,7 @@ import MapKit
     }
     
     func getFruitLocationDetails(for identifier: Int) async -> (details: LocationDetails?, error: String?) {
-        let url = buildLocationDetailsRequest(for: identifier)
+        let url = URLBuilder.buildLocationDetailsRequest(for: identifier)
         let result: Result<LocationDetails, APIError> = await APIService.shared.request(
             url: url,
             responseType: LocationDetails.self
@@ -166,55 +166,6 @@ import MapKit
             // TODO: pass to the UI
             return(nil, error.localizedDescription)
         }
-    }
-    
-    private func buildClustersRequest(from region: MapRegion) -> URL {
-        let bounds = "\(region.bounds.swLat),\(region.bounds.swLng)|\(region.bounds.neLat),\(region.bounds.neLng)"
-    
-        let url = URLBuilder(baseURL: URLS.base)
-            .addPathComponent(URLS.clusters)
-            .addQueryParameter(key: Query.apiKey, value: Query.apiValue)
-            .addQueryParameter(key: Query.localeKey, value: Query.localeValue)
-            .addQueryParameter(key: Query.muniKey, value: Query.muniValue)
-            .addQueryParameter(key: Query.boundsKey, value: bounds)
-            .addQueryParameter(key: Query.zoomKey, value: region.zoom.description)
-            .build()
-        
-        return url!
-    }
-    
-    private func buildLocationsRequestURL(from region: MapRegion) -> URL {
-        let bounds = "\(region.bounds.swLat),\(region.bounds.swLng)|\(region.bounds.neLat),\(region.bounds.neLng)"
-    
-        let url = URLBuilder(baseURL: URLS.base)
-            .addPathComponent(URLS.locations)
-            .addQueryParameter(key: Query.apiKey, value: Query.apiValue)
-            .addQueryParameter(key: Query.localeKey, value: Query.localeValue)
-            .addQueryParameter(key: Query.muniKey, value: Query.muniValue)
-            .addQueryParameter(key: Query.limitKey, value: Query.limitValue)
-            .addQueryParameter(key: Query.boundsKey, value: bounds)
-            .addQueryParameter(key: Query.zoomKey, value: region.zoom.description)
-            .build()
-    
-        return url!
-    }
-    
-    private func buildLocationDetailsRequest(for identifier: Int) -> URL {
-        let url = URLBuilder(baseURL: URLS.base)
-            .addPathComponent(URLS.locations)
-            .addPathComponent(identifier.description)
-            .addQueryParameter(key: Query.apiKey, value: Query.apiValue)
-            .build()
-        
-        return url!
-    }
-    
-    private func getExpandedCoordinates(for region: MKCoordinateRegion, by kilometers: Double) -> MapBounds {
-        let span = region.center.getLatLonSpan(distanceKm: kilometers)
-        // Delta values represents the zoom level in the Web Mercator projection, where a smaller value indicates a higher zoom level.
-        let mkSpan = MKCoordinateSpan(latitudeDelta: span.latitudeSpan, longitudeDelta: span.longitudeSpan)
-        let expandedRegion = MKCoordinateRegion(center: region.center, span: mkSpan)
-        return expandedRegion.bounds()
     }
 
     /*

@@ -8,38 +8,53 @@
 import Foundation
 import MapKit
 
+/// Actor responsible for caching fruit locations and clusters data.
 actor MapDataCache {
     
-    private var cache = [Int: (bounds: MapBounds, data: [Any]) ]()
-    
-   func getLocations(forCoordinates bounds: MapBounds, at zoom: Int)  async -> (locations: [FruitLocation], bounds: MapBounds)? {
-//       print("THREAD getLocations: " + String(cString: __dispatch_queue_get_label(nil)))
-       if let stored = self.cache[zoom], let data = stored.data as? [FruitLocation], stored.bounds.contains(bounds) {
-           return (data, stored.bounds)
-       } else {
-           // caching data we don't need
-           self.cache[zoom] = nil
-           return nil
-       }
+    /// Strongly-typed cache entry for either locations or clusters
+    private enum CacheData {
+        case locations([FruitLocation])
+        case clusters([FruitCluster])
     }
     
-    func getClusters(for bounds: MapBounds, at zoom: Int) -> (clusters: [FruitCluster], bounds: MapBounds)? {
-        if let stored = self.cache[zoom], let data = stored.data as? [FruitCluster], stored.bounds.contains(bounds) {
-            return (data, stored.bounds)
-        } else {
-            // caching data we don't need
-            self.cache[zoom] = nil
+    private struct CacheEntry {
+        let bounds: MapBounds
+        let data: CacheData
+    }
+    
+    /// A dictionary with the key the zoom levels and value a tuple of map bounds and data (either fruit locations or clusters)
+    private var cache: [Int: CacheEntry] = [:]
+    
+    /// Retrieves fruit locations if they exist and the bounds are valid
+    func getLocations(for bounds: MapBounds, at zoom: Int) async -> [FruitLocation]? {
+        guard let entry = cache[zoom],
+              entry.bounds.contains(bounds),
+              case .locations(let locations) = entry.data else {
+            cache[zoom] = nil  // Remove stale or mismatched data
             return nil
         }
+        return locations
     }
-    
-    // if the new data isn't within the current bounds remove all cached data
-    func store(locations: [FruitLocation], for bounds : MapBounds, at zoom: Int) {
-        self.cache[zoom] = (bounds, locations)
+
+    /// Retrieves fruit clusters if they exist and the bounds are valid
+    func getClusters(for bounds: MapBounds, at zoom: Int) -> [FruitCluster]? {
+        guard let entry = cache[zoom],
+              entry.bounds.contains(bounds),
+              case .clusters(let clusters) = entry.data else {
+            cache[zoom] = nil  // Remove stale or mismatched data
+            return nil
+        }
+        return clusters
     }
-    
-    // if the new data isn't within the current bounds remove all cached data
+
+    /// Stores a list of fruit locations in the cache
+    func store(locations: [FruitLocation], for bounds: MapBounds, at zoom: Int) {
+        cache[zoom] = CacheEntry(bounds: bounds, data: .locations(locations))
+    }
+
+    /// Stores a list of fruit clusters in the cache
     func store(clusters: [FruitCluster], within bounds: MapBounds, at zoom: Int) {
-        self.cache[zoom] = (bounds, clusters)
+        cache[zoom] = CacheEntry(bounds: bounds, data: .clusters(clusters))
     }
+    
 }

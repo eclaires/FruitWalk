@@ -8,219 +8,236 @@
 import Foundation
 import MapKit
 
-//TODO: functions to build URL requests
-
+/// A ViewData class responsible for fetching and caching fruit map data
+/// Operates on the main actor to ensure UI consistency.
 @MainActor @Observable class MapStore {
     
-    var data = MapData(locations: [FruitLocation](), clusters: [FruitCluster](), identifier: MapRequestId())
-    
-    @ObservationIgnored private let session: URLSession!
-    @ObservationIgnored private let decoder = JSONDecoder()
-    
-    // create a data manager to decide how to cache...
-    @ObservationIgnored private var cache = MapDataCache()
+    // MARK: - Public State
 
-    @ObservationIgnored private var mapRequestId: MapRequestId?
-    
+    /// The latest loaded map data (locations, clusters, and the region they belong to).
+    var data = MapData(locations: [], clusters: [], requestRegion: nil)
+
+    // MARK: - Private Properties
+
+    @ObservationIgnored private let session: URLSession
+    @ObservationIgnored private let decoder = JSONDecoder()
+    @ObservationIgnored private let cache = MapDataCache()
+    @ObservationIgnored private var requestRegion: MapRegion?
+
+    // MARK: - Initialization
+
+    /// Initializes the store with a default URLSession configuration.
     init() {
         let configuration = URLSessionConfiguration.default
-        session  = URLSession.init(configuration: configuration)
+        self.session = URLSession(configuration: configuration)
     }
-
+    
+    // MARK: - Public Methods
+    
+    /// Fetches fruit data for the given map region.
+    ///
+    /// Chooses between loading clusters or individual fruit locations based on zoom level.
+    /// - Parameter region: The map region to fetch data for.
     func fetchFruit(for region: MapRegion) async {
         if region.zoom < LOCATION_ZOOM {
-            await loadFriutClusters(for: region)
+            await loadFruitClusters(for: region)
         } else {
-            await loadFriutLocations(for: region)
+            await loadFruitLocations(for: region)
         }
     }
     
-    func fetchLocationDetails(for: FruitLocation) -> LocationDetails? {
+    /// Asynchronously fetches detailed information for a specific fruit location.
+    ///
+    /// - Parameter identifier: The unique ID of the fruit location.
+    /// - Returns: A tuple containing the `LocationDetails` on success, or an error message string on failure.
+    func getFruitLocationDetails(for identifier: Int) async -> (details: LocationDetails?, error: String?) {
         
-        return nil
-    }
-    
-    private func loadFriutLocations(for region: MapRegion) async {
-        print("THREAD loadFriutLocations: " + String(cString: __dispatch_queue_get_label(nil)))
-        if checkIfLoadingOrLoaded(for: region) {
-            return
+        // Construct the request URL for the given fruit location ID
+        let url = URLBuilder.buildLocationDetailsRequest(for: identifier)
+        
+        // Perform the API request and await the result, which can be either a success or failure
+        let result: Result<LocationDetails, APIError> = await APIService.shared.request(
+            url: url,
+            responseType: LocationDetails.self
+        )
+        
+        // Handle the result of the API request
+        switch result {
+        case .success(let details):
+            // Return the fetched details with no error
+            return (details, nil)
+        case .failure(let error):
+            // TODO: Integrate this error with UI feedback mechanisms
+            // Return nil for details and the error message string
+            return (nil, error.localizedDescription)
         }
+    }
+
+    /// Asynchronously Loads all fruit types from the API.
+    func loadFruitTypes() async {
+        let url = URLBuilder.buildFruitTypesRequest()
+        let result: Result<[FruitType], APIError> = await APIService.shared.request(
+            url: url,
+            responseType: [FruitType].self
+        )
         
-        let searchRegion = region.multiplyBy(screenMultiplier: 1.5)
-        
-        // build the request identifier before any async call
-        // the requiest identifier is used if the same request is made before the first returns
-        let url = buildLocationsRequestURL(bounds: searchRegion.bounds)
-        let mapRequestIdentifier = MapRequestId(zoom: Int(searchRegion.zoom), bounds: searchRegion.bounds)
-        self.mapRequestId = mapRequestIdentifier
-        
-        do {
-            if let data = await cache.getLocations(forCoordinates: region.bounds, at: region.zoom) {
-                print("    ---- SETTING cached Locations and RETURN")
-                // create a request identifier for what this data represents
-                let identifier = MapRequestId(zoom: Int(searchRegion.zoom), bounds: data.bounds)
-                self.data = MapData(locations: data.locations, clusters: [FruitCluster](), identifier: identifier)
-                // not requesting after all
-                self.mapRequestId = nil
-                return
-            }
-            
-            print("---- REQUESTING FRUIT!!! for zoom: \(searchRegion.zoom)")
-            print("THREAD FruitStore.loadFriutLocations: " + String(cString: __dispatch_queue_get_label(nil)))
-            
-            let (data, response) = try await session.data(from: url)
-            handleError(data, response)
-            
-            let fruitLocations = try decoder.decode([FruitLocation].self, from: data)
-            // if we still want this data
-            if self.mapRequestId == mapRequestIdentifier {
-                print("    ---- SETTING FRUIT locations - count \(fruitLocations.count)")
-                await cache.store(locations: fruitLocations, for: searchRegion.bounds, at: searchRegion.zoom )
-                self.data = MapData(locations: fruitLocations, clusters: [FruitCluster](), identifier: mapRequestIdentifier)
-                
-                self.mapRequestId = nil
-            } else {
-                print("    ---- NOT ASSIGNING  and storing FRUIT")
-            }
-            
-        } catch {
-            print(error)
+        switch result {
+        case .success(let types):
+            print(types.count)
+        case .failure(let error):
+            print(error.localizedDescription)
         }
     }
     
-    private func loadFriutClusters(for region: MapRegion) async {
-        if checkIfLoadingOrLoaded(for: region) {
-            return
-        }
-        
-        let searchRegion = region.multiplyBy(screenMultiplier: 2.0)
-        
-        // build the request identifier before any async call
-        // the requiest identifier is used if the same request is made before the first returns
-        let url = buildClustersRequest(bounds: searchRegion.bounds, zoom: Int(searchRegion.zoom))
-        let mapRequestId = MapRequestId(zoom: Int(searchRegion.zoom), bounds: searchRegion.bounds)
-        self.mapRequestId =  mapRequestId
-        
-        do {
-            if let data = await cache.getClusters(for: region.bounds, at: Int(region.zoom)) {
-                print("    ---- SETTING cached clusters and RETURN")
-                // create a request identifier for what this data represents
-                let identifier = MapRequestId(zoom: Int(searchRegion.zoom), bounds: data.bounds)
-                self.data = MapData(locations: [FruitLocation](), clusters: data.clusters, identifier: identifier)
-                // not requesting after all
-                self.mapRequestId = nil
-                return
-            }
-            
-            print("---- REQUESTING CLUSTERS FOR zoom \(searchRegion.zoom)")
-            
-            let (data, response) = try await session.data(from: url)
-            handleError(data, response)
-            
-            let clusters = try decoder.decode([FruitCluster].self, from: data)
-            // if we still want this data set it in the observed variable
-            if self.mapRequestId == mapRequestId {
-                print("     ---- STORING AND SETTING CLUSTERS - count \(clusters.count)")
-                await cache.store(clusters: clusters, within: searchRegion.bounds, at: searchRegion.zoom)
-                self.data = MapData(locations: [FruitLocation](), clusters: clusters, identifier: mapRequestId)
-                
-                self.mapRequestId = nil
-            } else {
-                print("     ---- NOT ASSIGNING  and storing CLUSTERS")
-            }
-        } catch {
-            print(error)
-        }
-    }
+    // MARK: - Private Methods
     
-    private func buildLocationsRequestURL(bounds: MapBounds) -> URL {
-        let bounds = "bounds=\(bounds.swLat),\(bounds.swLng)|\(bounds.neLat),\(bounds.neLng)"
-        let urlString = Locations_URL_Beta + "?api_key=AKDJGHSD&locale=en&muni=true&limit=300&" + bounds
-        let url = URL(string: urlString, encodingInvalidCharacters: true)
-        return url!
-    }
-    
-    private func buildClustersRequest(bounds: MapBounds, zoom: Int) -> URL {
-        let bounds = "bounds=\(bounds.swLat),\(bounds.swLng)|\(bounds.neLat),\(bounds.neLng)"
-        let urlString = Clusters_URL_Beta + "?api_key=AKDJGHSD&muni=true&zoom=\(zoom)&" + bounds
-        let url = URL(string: urlString, encodingInvalidCharacters: true)
-        return url!
-    }
-    
-    private func getExpandedCoordinates(for region: MKCoordinateRegion, by kilometers: Double) -> MapBounds {
-        let span = region.center.getLatLonSpan(distanceKm: kilometers)
-        // Delta values represents the zoom level in the Web Mercator projection, where a smaller value indicates a higher zoom level.
-        let mkSpan = MKCoordinateSpan(latitudeDelta: span.latitudeSpan, longitudeDelta: span.longitudeSpan)
-        let expandedRegion = MKCoordinateRegion(center: region.center, span: mkSpan)
-        return expandedRegion.bounds()
-    }
-    
-    private func handleError(_ data: Data, _ response: URLResponse) {
-        // check response code
-        guard let httpResponse = response as? HTTPURLResponse else {
-            print("not a HTTPURLResponse")
-            return
-        }
-        guard (200...299).contains(httpResponse.statusCode) else {
-            if let string = String(data: data, encoding: .utf8) {
-                // {"error":"Zoom not in interval [0, 14]"}
-                print(string)
-            }
-            return
-        }
-    }
-    
+    /// Checks whether data for the specified region is already being loaded or has been loaded.
+    ///
+    /// - Parameter region: The map region to check against current or past requests.
+    /// - Returns: `true` if the region is already loading or loaded; otherwise, `false`.
     private func checkIfLoadingOrLoaded(for region: MapRegion) -> Bool {
-        if let mapRequestId = self.mapRequestId, mapRequestId.requestsSameData(forZoom: region.zoom, withBounds: region.bounds) {
-            print("    ---- RETURNING EARLY zoom \(region.zoom) already requested")
+        if let requestRegion = self.requestRegion, requestRegion.zoom == region.zoom, requestRegion.bounds.contains(region.bounds) {
+            print("    ---- RETURNING EARLY zoom \(region.zoom) already REQUESTED")
             return true
         }
-        if data.identifier.requestsSameData(forZoom: Int(region.zoom), withBounds: region.bounds) {
-            print("    ---- RETURNING EARLY zoom \(region.zoom) already returned")
+        if let requestRegion = data.requestRegion, requestRegion.zoom == region.zoom, requestRegion.bounds.contains(region.bounds) {
+            print("    ---- RETURNING EARLY zoom \(region.zoom) already RETURNED")
             return true
         }
         return false
     }
     
-    
-    /*
-       public func loadTypes() async {
-           let urlString = "https://beta.fallingfruit.org/api/0.3/types?api_key=AKDJGHSD"
-           let url = URL(string: urlString)
-           
-               do {
-                   
-                   print("THREAD FruitStore.loadTypes: " + String(cString: __dispatch_queue_get_label(nil)))
-                   
-                   let (data, response) = try await session.data(from: url!)
-                   types = try decoder.decode([FruitType].self, from: data)
-               } catch {
-                   print(error)
-               }
-       }
-    */
-}
+    /// Asynchronously Loads fruit locations for a given map region
+    ///
+    /// This function uses caching and request deduplication to minimize redundant network calls.
+    /// It also expands the search bounds to preload nearby clusters, improving map scrolling performance and user experience.
+    ///
+    /// - Parameter region: The map region for which to load fruit clusters.
+    private func loadFruitLocations(for region: MapRegion) async {
+        // Avoid loading if data for this region is already being loaded or has been loaded
+        guard !checkIfLoadingOrLoaded(for: region) else { return }
+        
+        // Expand the search area slightly to anticipate nearby movements and reduce future loads
+        let searchRegion = region.multiplyBy(screenMultiplier: 1.5)
+        
+        // Track the current requested region to validate response relevance later
+        self.requestRegion = searchRegion
 
-extension MapStore {
-    
-    func getLocationDetails(for identifier: Int) async -> (details: LocationDetails?, error: String?) {
-        let urlString = "https://beta.fallingfruit.org/api/0.3/locations/" + String(identifier) + "?api_key=AKDJGHSD&embed=reviews"
-        let url = URL(string: urlString)
-        let configuration = URLSessionConfiguration.default
-        let session  = URLSession.init(configuration: configuration)
+        // Helper closure to assign data and clear requestRegion
+        func setData(_ locations: [FruitLocation], for region: MapRegion, isCached: Bool) {
+            print("    ---- SETTING \(isCached ? "cached" : "new") Locations for region")
+            self.data = MapData(locations: locations, clusters: [], requestRegion: region)
+            self.requestRegion = nil
+        }
+
         do {
-            // TODO: test response
-            let (data, response) = try await session.data(from: url!)
-            let decoder = JSONDecoder()
-            let details = try decoder.decode(LocationDetails.self, from: data)
-            return(details, nil)
-        } catch {
-            print(error)
-            // TODO: FIX ERROR
-            return(nil, error.localizedDescription)
+            // Check cache for the expanded region first
+            if let locations = await cache.getLocations(for: region.bounds, at: searchRegion.zoom) {
+                setData(locations, for: searchRegion, isCached: true)
+                return
+            }
+            
+            // Then try the original region
+            if let locations = await cache.getLocations(for: region.bounds, at: region.zoom) {
+                setData(locations, for: region, isCached: true)
+                return
+            }
+
+            // Build the URL and make a network request
+            let url = URLBuilder.buildLocationsRequestURL(from: searchRegion)
+            
+            print("---- REQUESTING FRUIT!!! for zoom: \(searchRegion.zoom), search size: \(searchRegion.size)")
+            print("THREAD FruitStore.loadFriutLocations: " + String(cString: __dispatch_queue_get_label(nil)))
+
+            let result: Result<[FruitLocation], APIError> = await APIService.shared.request(
+                url: url,
+                responseType: [FruitLocation].self
+            )
+
+            switch result {
+            case .success(let fruitLocations):
+                // Only assign data if the requested region is still valid
+                if self.requestRegion == searchRegion {
+                    print("    ---- SETTING FRUIT locations - count \(fruitLocations.count)")
+                    await cache.store(locations: fruitLocations, for: searchRegion.bounds, at: searchRegion.zoom)
+                    setData(fruitLocations, for: searchRegion, isCached: false)
+                } else {
+                    // Region changed before the result came back—do not update state
+                    print("    ---- NOT ASSIGNING and storing FRUIT (stale request)")
+                }
+
+            case .failure(let error):
+                // TODO: Add better error handling if needed
+                print(error)
+            }
         }
     }
     
+    /// Asynchronously Loads fruit clusters for a given map region
+    ///
+    /// This function uses caching and request deduplication to minimize redundant network calls.
+    /// It also expands the search bounds to preload nearby clusters, improving map scrolling performance and user experience.
+    ///
+    /// - Parameter region: The map region for which to load fruit clusters.
+    private func loadFruitClusters(for region: MapRegion) async {
+        
+        // Return early if we're already loading or have loaded this region
+        guard !checkIfLoadingOrLoaded(for: region) else { return }
+
+        // Expand the search area to improve caching hit rate
+        let searchRegion = region.multiplyBy(screenMultiplier: 2.0)
+        let url = URLBuilder.buildClustersRequest(from: searchRegion)
+        
+        // Save the request region to avoid duplicate requests
+        self.requestRegion = searchRegion
+        
+        // Helper closure to assign data and clear requestRegion
+        func setData(_ clusters: [FruitCluster], for region: MapRegion, isCached: Bool) {
+            print("    ---- SETTING \(isCached ? "cached" : "new") Clusters for region")
+            self.data = MapData(locations: [], clusters: clusters, requestRegion: region)
+            self.requestRegion = nil
+        }
+
+        do {
+            // Check if clusters for the expanded region are cached
+            if let clusters = await cache.getClusters(for: searchRegion.bounds, at: Int(searchRegion.zoom)) {
+                setData(clusters, for: searchRegion, isCached: true)
+                return
+            }
+
+            // Fallback: check if clusters for the original region are cached
+            if let clusters = await cache.getClusters(for: region.bounds, at: Int(region.zoom)) {
+                setData(clusters, for: region, isCached: true)
+                return
+            }
+
+            print("---- REQUESTING CLUSTERS for zoom level \(searchRegion.zoom)")
+            // Make the network request
+            let result: Result<[FruitCluster], APIError> = await APIService.shared.request(
+                url: url,
+                responseType: [FruitCluster].self
+            )
+
+            switch result {
+            case .success(let fruitClusters):
+                // Only assign data if the request region hasn't changed
+                if self.requestRegion == searchRegion {
+                    print("     ---- STORING AND SETTING \(fruitClusters.count) CLUSTERS")
+                    await cache.store(clusters: fruitClusters, within: searchRegion.bounds, at: searchRegion.zoom)
+                    setData(fruitClusters, for: searchRegion, isCached: false)
+                } else {
+                    print("     ---- RECEIVED DATA IGNORED (region changed)")
+                }
+
+            case .failure(let error):
+                // Handle error (should be forwarded to UI)
+                print("     ---- ERROR loading clusters: \(error)")
+            }
+        }
+    }
+    
+    
 }
+
 
 

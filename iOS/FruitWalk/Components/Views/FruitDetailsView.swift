@@ -141,7 +141,7 @@ struct FruitDetails: View {
         .task {
             if !requestedDetails && details == nil {
                 requestedDetails = true
-                let response = await mapStore.getLocationDetails(for: location.identifier)
+                let response = await mapStore.getFruitLocationDetails(for: location.identifier)
                 if let responseData = response.details {
                     details = responseData
                 } else {

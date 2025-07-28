@@ -11,7 +11,7 @@ import MapKit
 
 struct FavoritesListView: UIViewRepresentable {
     @Binding var sortOrder: FavoritesSortOrder
-    @Binding var loadState: loadingState
+    @Binding var loadState: LoadingState
     @Environment(LocationManager.self) var locationManager
     
     func makeUIView(context: Context) -> UITableView {
@@ -55,7 +55,7 @@ struct FavoritesListView: UIViewRepresentable {
             self.locationManager = locationManager
         }
         
-        func updateList(using sortOrder: FavoritesSortOrder) async -> loadingState {
+        func updateList(using sortOrder: FavoritesSortOrder) async -> LoadingState {
             favorites = [FruitLocation]()
             
             currentSortOrder = sortOrder

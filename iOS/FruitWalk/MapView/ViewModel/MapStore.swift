@@ -15,7 +15,7 @@ import MapKit
     // MARK: - Public State
 
     /// The latest loaded map data (locations, clusters, and the region they belong to).
-    var data = MapData(locations: [], clusters: [], requestRegion: nil)
+    var data = MapData(status: .loading, locations: [], clusters: [], requestRegion: nil)
 
     // MARK: - Private Properties
 
@@ -91,17 +91,13 @@ import MapKit
     
     // MARK: - Private Methods
     
-    /// Checks whether data for the specified region is already being loaded or has been loaded.
+    /// Checks whether data for the specified region is already being loaded (self.requestRegion) or has been loaded (data.requestRegion)
     ///
     /// - Parameter region: The map region to check against current or past requests.
     /// - Returns: `true` if the region is already loading or loaded; otherwise, `false`.
     private func checkIfLoadingOrLoaded(for region: MapRegion) -> Bool {
-        if let requestRegion = self.requestRegion, requestRegion.zoom == region.zoom, requestRegion.bounds.contains(region.bounds) {
-            print("    ---- RETURNING EARLY zoom \(region.zoom) already REQUESTED")
-            return true
-        }
-        if let requestRegion = data.requestRegion, requestRegion.zoom == region.zoom, requestRegion.bounds.contains(region.bounds) {
-            print("    ---- RETURNING EARLY zoom \(region.zoom) already RETURNED")
+        if let requestRegion = self.requestRegion ?? data.requestRegion, requestRegion.zoom == region.zoom, requestRegion.bounds.contains(region.bounds) {
+            print("    ---- RETURNING EARLY zoom \(region.zoom) already requested or recieved")
             return true
         }
         return false
@@ -125,8 +121,8 @@ import MapKit
 
         // Helper closure to assign data and clear requestRegion
         func setData(_ locations: [FruitLocation], for region: MapRegion, isCached: Bool) {
-            print("    ---- SETTING \(isCached ? "cached" : "new") Locations for region")
-            self.data = MapData(locations: locations, clusters: [], requestRegion: region)
+            print("    ---- SETTING \(isCached ? "CACHED" : "NEW") \(locations.count) Fruit Locations")
+            self.data = MapData(status: .loaded, locations: locations, clusters: [], requestRegion: region)
             self.requestRegion = nil
         }
 
@@ -145,6 +141,7 @@ import MapKit
 
             // Build the URL and make a network request
             let url = URLBuilder.buildLocationsRequestURL(from: searchRegion)
+            self.data.status = .loading
             
             print("---- REQUESTING FRUIT!!! for zoom: \(searchRegion.zoom), search size: \(searchRegion.size)")
             print("THREAD FruitStore.loadFriutLocations: " + String(cString: __dispatch_queue_get_label(nil)))
@@ -158,16 +155,16 @@ import MapKit
             case .success(let fruitLocations):
                 // Only assign data if the requested region is still valid
                 if self.requestRegion == searchRegion {
-                    print("    ---- SETTING FRUIT locations - count \(fruitLocations.count)")
                     await cache.store(locations: fruitLocations, for: searchRegion.bounds, at: searchRegion.zoom)
                     setData(fruitLocations, for: searchRegion, isCached: false)
                 } else {
                     // Region changed before the result came back—do not update state
-                    print("    ---- NOT ASSIGNING and storing FRUIT (stale request)")
+                    print("     ---- Fruit Locations RECEIVED DATA IGNORED (request changed)")
                 }
 
             case .failure(let error):
                 // TODO: Add better error handling if needed
+                self.data.status = .failed(error)
                 print(error)
             }
         }
@@ -193,8 +190,8 @@ import MapKit
         
         // Helper closure to assign data and clear requestRegion
         func setData(_ clusters: [FruitCluster], for region: MapRegion, isCached: Bool) {
-            print("    ---- SETTING \(isCached ? "cached" : "new") Clusters for region")
-            self.data = MapData(locations: [], clusters: clusters, requestRegion: region)
+            print("    ---- SETTING \(isCached ? "CACHED" : "NEW") Clusters")
+            self.data = MapData(status: .loaded, locations: [], clusters: clusters, requestRegion: region)
             self.requestRegion = nil
         }
 
@@ -213,6 +210,7 @@ import MapKit
 
             print("---- REQUESTING CLUSTERS for zoom level \(searchRegion.zoom)")
             // Make the network request
+            self.data.status = .loading
             let result: Result<[FruitCluster], APIError> = await APIService.shared.request(
                 url: url,
                 responseType: [FruitCluster].self
@@ -222,16 +220,16 @@ import MapKit
             case .success(let fruitClusters):
                 // Only assign data if the request region hasn't changed
                 if self.requestRegion == searchRegion {
-                    print("     ---- STORING AND SETTING \(fruitClusters.count) CLUSTERS")
                     await cache.store(clusters: fruitClusters, within: searchRegion.bounds, at: searchRegion.zoom)
                     setData(fruitClusters, for: searchRegion, isCached: false)
                 } else {
-                    print("     ---- RECEIVED DATA IGNORED (region changed)")
+                    print("     ---- Cluster RECEIVED DATA IGNORED (request changed)")
                 }
 
             case .failure(let error):
                 // Handle error (should be forwarded to UI)
                 print("     ---- ERROR loading clusters: \(error)")
+                self.data.status = .failed(error)
             }
         }
     }

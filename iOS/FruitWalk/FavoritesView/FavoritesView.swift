@@ -7,18 +7,12 @@
 
 import SwiftUI
 
-enum loadingState {
-    case none
-    case loading
-    case loaded
-    case cancelled
-}
 struct FavoritesView: View {
     @Environment(LocationManager.self) var locationManager
     @Environment(\.scenePhase) var scenePhase
     @Binding var selectedTab: Int
     @State var sortOrder = FavoritesSortOrder.defaultSort
-    @State var loadState: loadingState = .none
+    @State var loadState: LoadingState = .cancelled
     @State var wasBackgrounded = false
     
     var body: some View {
@@ -99,7 +93,7 @@ struct FavoritesView: View {
             if selectedTab == MainTabs.favorite {
                 if oldValue == nil && newValue != nil {
                     print("+++ onChange userLocation setting state loading...")
-                    loadState = .none // if it was loading rest to force relaod
+                    loadState = .cancelled // if it was loading rest to force relaod
                     loadState = .loading
                 }
             }

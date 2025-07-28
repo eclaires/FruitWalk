@@ -186,6 +186,11 @@ struct MapView: View {
                             LookAroundViewer(lookAroundData: $lookAroundData)
                         }
                     }
+                    .overlay(alignment: .bottom) {
+                        if mapStore.data.status == .loading {
+                            AnimatedProgressBar()
+                        }
+                    }
                     
                 } // ZStack
                 if let errorMessage = lookAroundData.errorMessage {

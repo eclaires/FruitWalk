@@ -27,24 +27,22 @@ actor MapDataCache {
     
     /// Retrieves fruit locations if they exist and the bounds are valid
     func getLocations(for bounds: MapBounds, at zoom: Int) async -> [FruitLocation]? {
-        guard let entry = cache[zoom],
+        if let entry = cache[zoom],
               entry.bounds.contains(bounds),
-              case .locations(let locations) = entry.data else {
-            cache[zoom] = nil  // Remove stale or mismatched data
-            return nil
+              case .locations(let locations) = entry.data {
+            return locations
         }
-        return locations
+        return nil
     }
 
     /// Retrieves fruit clusters if they exist and the bounds are valid
     func getClusters(for bounds: MapBounds, at zoom: Int) -> [FruitCluster]? {
-        guard let entry = cache[zoom],
+        if let entry = cache[zoom],
               entry.bounds.contains(bounds),
-              case .clusters(let clusters) = entry.data else {
-            cache[zoom] = nil  // Remove stale or mismatched data
-            return nil
+              case .clusters(let clusters) = entry.data {
+                return clusters
         }
-        return clusters
+        return nil
     }
 
     /// Stores a list of fruit locations in the cache

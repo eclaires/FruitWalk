@@ -8,6 +8,7 @@
 import Foundation
 
 struct MapData {
+    var status: LoadingState
     var locations: [FruitLocation]
     var clusters: [FruitCluster]
     var requestRegion: MapRegion?

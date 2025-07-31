@@ -36,7 +36,6 @@ struct SearchView: View {
                 }
             }
             Spacer()
-            // Add list of fruit Locations
             
             List(lookup.results, id: \.self, selection: $selection) {result in
                 VStack(alignment: .leading, spacing: 4) {
@@ -47,7 +46,7 @@ struct SearchView: View {
                 }
             }
             .onChange(of: selection) {
-                // If a fruit location select that location, otherwise go to an address
+                // stash the query for next time // TODO: stash a list for a drop down of previous searches
                 storedQuery = query
             }
             .scrollContentBackground(.hidden)

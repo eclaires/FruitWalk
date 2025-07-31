@@ -10,7 +10,6 @@ import MapKit
 
 struct SearchResultItem: Identifiable, Hashable {
     let id = UUID()
-    let identifier: Int?
     let title: String
     let subTitle: String
     let coordinate: CLLocationCoordinate2D

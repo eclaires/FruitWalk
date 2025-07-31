@@ -31,7 +31,6 @@ class MapSearch: NSObject, MKLocalSearchCompleterDelegate {
                let coordinate = mapItem.placemark.location?.coordinate
             {
                 results.append(.init(
-                    identifier: 0,
                     title: completion.title,
                     subTitle: completion.subtitle,
                     coordinate: coordinate

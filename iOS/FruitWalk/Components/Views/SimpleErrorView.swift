@@ -1,25 +1,42 @@
 //
-//  SimpleErrorView.swift
+//  SimpleMessageView.swift
 //  FruitWalk
 //
 //  Created by Claire S on 3/15/25.
-//
-// Work in progress!! simple view to show a message and dismissed on tap
 
 import SwiftUI
 
-struct SimpleErrorView: View {
+struct SimpleMessageView: View {
+    @Binding var showErrorMessage: Bool
+    let title: String
     let message: String
     
     var body: some View {
         VStack() {
+            HStack() {
+                Text(title)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                Button(action: {
+                    showErrorMessage = false
+                }) {
+                    Image(systemName: "xmark.circle")
+                        .foregroundColor(.primary)
+                        .font(.title)
+                }
+            }
+            .padding([.top, .leading, .trailing], 12)
             Text(message)
-                .padding(20)
+                .padding([.bottom, .trailing], 12)
                 .multilineTextAlignment(.center)
         }
-        .padding(8)
-        .background(.white, in: Rectangle())
-        .border(.black)
+        .background(.white)
+        .cornerRadius(15)
+        .overlay(
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.black, lineWidth: 2)
+        )
     }
 }
 

@@ -163,7 +163,6 @@ import MapKit
                 }
 
             case .failure(let error):
-                // TODO: Add better error handling if needed
                 self.data.status = .failed(error)
                 print(error)
             }
@@ -227,8 +226,6 @@ import MapKit
                 }
 
             case .failure(let error):
-                // Handle error (should be forwarded to UI)
-                print("     ---- ERROR loading clusters: \(error)")
                 self.data.status = .failed(error)
             }
         }

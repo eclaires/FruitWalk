@@ -63,7 +63,6 @@ struct FruitDetails: View {
                             .frame(width: 100, height: 100)
                     }
                 } else {
-                    let id = location.typeIds.first
                     Image(location.defaultImage())
                         .resizable()
                         .scaledToFill()
@@ -145,7 +144,8 @@ struct FruitDetails: View {
                 if let responseData = response.details {
                     details = responseData
                 } else {
-                    print(response.error)
+                    // not neccessary to show the error to the user
+                    print(response.error ?? "error fetching details")
                 }
                 requestedDetails = false
             }

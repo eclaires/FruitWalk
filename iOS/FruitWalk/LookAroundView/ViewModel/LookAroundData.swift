@@ -10,14 +10,14 @@ import MapKit
 
 /// ViewModel which contains a MKLookAroundScene for coordinates set in getScene()
 @MainActor @Observable class LookAroundData {
-    var errorMessage: String?
+    var error: APIError?
     var scene: MKLookAroundScene?
     @ObservationIgnored private(set) var coordinate: CLLocationCoordinate2D?
     
     func clearData() {
         scene = nil
         coordinate = nil
-        errorMessage = nil
+        error = nil
     }
     
     /// function which asyncronously gets the MKLookAroundScene for the coordinate passed
@@ -37,16 +37,13 @@ import MapKit
                     let scene = try await request.scene
                     if self.coordinate == coordinate {
                         if scene == nil {
-                            // TODO: localized and better mesaging, use an Error object
-                            self.errorMessage = "Unable to look around at this map location"
+                            self.error = APIError.lookAroundUnavailable
                         } else {
                             self.scene = scene
                         }
                     }
                 } catch (let error) {
-                    print(error)
-                    // TODO: localized and better mesaging, use an Error object
-                    self.errorMessage = "Unable to look around at this map location"
+                    self.error = APIError.networkError(underlying: error)
                 }
             }
         }

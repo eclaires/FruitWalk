@@ -27,6 +27,7 @@ struct MapContentView: View {
     @Binding var filter: FruitFilter?                  // filter on types of fruit (if any) to apply to the map
     @Binding var lookAroundData: LookAroundData     // Controls Look Around viewer content
     @Binding var presentedSheet: MapSheetManager    // Manages which sheet is currently presented
+    @Binding var showErrorMessage: Bool             // Whether to show an error message (if one occured)
     
     // MARK: - Internal State
     
@@ -46,7 +47,7 @@ struct MapContentView: View {
                 
                 // Add annotations for each location in the dataset
                 ForEach(mapStore.data.locations.indices) { index in
-                    // Logic to determine if if and how the location should be shown
+                    // Logic to determine if and how the location should be shown
                     let location = mapStore.data.locations[index]
                     let filterApplied = filter != nil || showFavoritesOnly
                     let inFilter = (filter != nil && filter!.contains(location)) || (showFavoritesOnly && favorites[location.identifier] != nil)
@@ -185,6 +186,8 @@ struct MapContentView: View {
     }
     
     func handleTapGesture() {
+        // any tap outside the error message will hide it
+        showErrorMessage = false
         // assign to lastSelectedId to show the selection without the details sheet popping when
         lastSelectedId = selectedId
         selectedId = nil

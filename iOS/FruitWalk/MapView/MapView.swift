@@ -25,32 +25,36 @@ struct MapView: View {
     @State private var lookAroundData = LookAroundData()    // when lookaround data is set, displays a look around viewer
     @State private var filter: FruitFilter?                 // a filter applied to the fruit data
     @State private var showFavoritesOnly = false            // whether to show only fruit locations which are favorited
-    @State private var errorMessage: String?
     @State private var presentedSheet: MapSheetManager = .init()
-    @State private var showSimpleMessage: Bool = false
+    @State private var showErrorMessage: Bool = false
 
     var body: some View {
         NavigationStack {
             GeometryReader { geometryProxy in
                 ZStack {
-                    MapContentView(geo: geometryProxy, selectedTab: $selectedTab, showFavoritesOnly: $showFavoritesOnly, filter: $filter, lookAroundData:$lookAroundData, presentedSheet: $presentedSheet)
+                    MapContentView(geo: geometryProxy, selectedTab: $selectedTab, showFavoritesOnly: $showFavoritesOnly, filter: $filter, lookAroundData:$lookAroundData, presentedSheet: $presentedSheet, showErrorMessage: $showErrorMessage)
                         .environment(mapStore)
                         .environment(locationManager)
-                        .mapOverlays(showFavoritesOnly: $showFavoritesOnly, filter: $filter, lookAroundData: $lookAroundData)
+                        .mapOverlays(showFavoritesOnly: $showFavoritesOnly, filter: $filter, lookAroundData: $lookAroundData, showErrorMessage: $showErrorMessage)
                         .environment(mapStore)
-                    
-                }
-                if let errorMessage = lookAroundData.errorMessage {
-                    HStack {
-                        SimpleErrorView(message: errorMessage)
-                    }
-                    .padding(20)
-                    .allowsHitTesting(false)
                 }
             }
             .navigationTitle("Fruit Walk")
             .navigationBarTitleDisplayMode(.inline)
             .mapToolbar(presentedSheet: $presentedSheet)
+            .onChange(of: mapStore.data.status) {
+                switch mapStore.data.status {
+                case .failed(_):
+                    showErrorMessage = true
+                case .loading, .loaded, .cancelled:
+                    break
+                }
+            }
+            .onChange(of: lookAroundData.error) {
+                if lookAroundData.error != nil {
+                    showErrorMessage = true
+                }
+            }
         }
     }
 }

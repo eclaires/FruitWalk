@@ -26,6 +26,9 @@ struct SearchView: View {
                     .padding(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                     .background(Color.gray.opacity(0.2))
                     .clipShape(RoundedRectangle(cornerRadius: 16.0))
+                    .onChange(of: query) {
+                        lookup.update(query: query)
+                    }
                 Button {
                     storedQuery = nil
                     dismiss()
@@ -56,9 +59,6 @@ struct SearchView: View {
             if let storedQuery = storedQuery {
                 query = storedQuery
             }
-        }
-        .onChange(of: query) {
-            lookup.update(queryFragment: query)
         }
         .padding()
     }

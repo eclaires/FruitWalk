@@ -46,6 +46,8 @@ struct FruitDetails: View {
     @State var distanceMeters: Double?
     @State var requestedDetails = false
     @State var requestedRoute = false
+    // state variable used to force a refresh when the view disappears and reappears, needed when used in a UITableView and recycled.
+    @State var needsRefresh: Bool = true
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -136,6 +138,12 @@ struct FruitDetails: View {
             }
             Spacer()
         } // VStack
+        .onAppear() {
+            needsRefresh.toggle()
+        }
+        .onDisappear() {
+            needsRefresh.toggle()
+        }
         .padding(EdgeInsets(top: 8, leading: 16.0, bottom: 0, trailing: 16.0))
         .task {
             if !requestedDetails && details == nil {

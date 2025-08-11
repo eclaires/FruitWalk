@@ -13,6 +13,8 @@ struct MapListViewItem: View {
     let location: FruitLocation
     @Binding var filter: FruitFilter?
     let startCoordinate: CLLocationCoordinate2D?
+    // state variable used to force a refresh when the view disappears and reappears, needed when used in a UITableView and recycled. Fixes issue where the favorites button was not updated
+    @State var needsRefresh: Bool = true
     
     var body: some View {
         VStack {
@@ -27,6 +29,12 @@ struct MapListViewItem: View {
             Spacer()
                 .frame(height: 8)
             DistanceView(fruitLocation: location, includeDirections: true, startCoordinate: startCoordinate)
+        }
+        .onAppear() {
+            needsRefresh.toggle()
+        }
+        .onDisappear() {
+            needsRefresh.toggle()
         }
     }
 }

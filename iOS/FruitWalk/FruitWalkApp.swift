@@ -7,7 +7,6 @@
 
 import SwiftUI
 import SwiftData
-//import Firebase
 
 struct MainTabs {
     static let map = 0
@@ -23,29 +22,34 @@ struct MainTabs {
 struct FruitWalkApp: App {
     @State private var locationManager = LocationManager()
     @State private var mapStore = MapStore()
-    
     @State private var selectedTab: Int = MainTabs.map
+    @AppStorage(UserDefaults.Keys.welcomeAccepted) private var welcomeAccepted: Bool = false
     
     var body: some Scene {
         WindowGroup {
-            TabView(selection: $selectedTab) {
-                MapView(selectedTab: $selectedTab)
-                    .tabItem {
-                        Label("Map", systemImage: "book")
-                            .foregroundStyle(.green)
-                    }
-                    .tag(MainTabs.map)
-                FavoritesView(selectedTab: $selectedTab)
-                    .tabItem {
-                        Label("Favorites", systemImage: "heart.fill")
-                            .foregroundStyle(.red)
-                    }
-                    .tag( MainTabs.favorite)
-                UserView()
-                    .tabItem {
-                        Label("Info", systemImage: "info.circle.fill")
-                    }
-                    .tag(MainTabs.info)
+            ZStack {
+                TabView(selection: $selectedTab) {
+                    MapView(selectedTab: $selectedTab)
+                        .tabItem {
+                            Label("Map", systemImage: "book")
+                                .foregroundStyle(.green)
+                        }
+                        .tag(MainTabs.map)
+                    FavoritesView(selectedTab: $selectedTab)
+                        .tabItem {
+                            Label("Favorites", systemImage: "heart.fill")
+                                .foregroundStyle(.red)
+                        }
+                        .tag( MainTabs.favorite)
+                    UserView()
+                        .tabItem {
+                            Label("Info", systemImage: "info.circle.fill")
+                        }
+                        .tag(MainTabs.info)
+                }
+                if !welcomeAccepted {
+                    WelcomeView(welcomeAccepted: $welcomeAccepted)
+                }
             }
         }
         .environment(locationManager)

@@ -61,7 +61,7 @@ enum PropertyAccess: Int, Codable {
         switch self {
             
         case .userOwned:
-            return "Posted by a Falling Fruit User"
+            return "Owned by a Falling Fruit User"
         case .ownerPermission:
             return "Owner permits access"
         case .publicLand:

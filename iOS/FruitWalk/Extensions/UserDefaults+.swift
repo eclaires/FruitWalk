@@ -15,6 +15,16 @@ extension UserDefaults {
         static let lastMapSearch = "last_map_search"
         static let favorites = "favorites"
         static let hidden = "hidden"
+        static let welcomeAccepted = "welcome_accepted"
+    }
+    
+    var welcomeAccepted: Bool {
+        set {
+            set(newValue, forKey: Keys.welcomeAccepted)
+        }
+        get {
+            return bool(forKey: Keys.welcomeAccepted)
+        }
     }
 
     var suppressFavoritesAlert: Bool {

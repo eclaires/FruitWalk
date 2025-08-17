@@ -25,7 +25,7 @@ struct Query {
     static let localeKey = "locale"
     static let localeValue = "en"
     static let limitKey = "limit"
-    static let limitValue = "300"
+    static let limitValue = "1000"
     static let muniKey = "muni"
     static let muniValue = "true"
     static let zoomKey = "zoom"

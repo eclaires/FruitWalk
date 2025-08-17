@@ -7,8 +7,8 @@
 
 import SwiftUI
 
-let checkboxImage = Image(systemName: "checkmark.rectangle.portrait.fill")
-let fallingFruitLink = "**[Falling Fruit](https://fallingfruit.org/about)**"
+private let checkboxImage = Image(systemName: "checkmark.rectangle.portrait.fill")
+private let fallingFruitLink = "**[Falling Fruit](https://fallingfruit.org/about)**"
 
 struct WelcomeView: View {
     @Binding var welcomeAccepted: Bool

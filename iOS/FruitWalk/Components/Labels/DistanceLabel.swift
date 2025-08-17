@@ -39,14 +39,12 @@ struct DistanceLabel: View {
     }
     
     func getIconString(_ meters: Double?) -> String {
-        var imageString: String = ""
+        var imageString: String = "car.side"
         if let meters = distanceMeters {
             if WalkDistance.contains(meters) {
                 imageString = "figure.walk"
             } else if BikeDistance.contains(meters) {
                 imageString = "bicycle"
-            } else {
-                imageString = "car.side"
             }
         }
         return imageString

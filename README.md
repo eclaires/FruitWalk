@@ -1,13 +1,13 @@
 # ![Screenshot 2025-05-26 at 5 59 32 PM](https://github.com/user-attachments/assets/147de368-30e8-4cd4-817f-b847707a954b) FruitWalk
 This repository contains mobile clients which display the data collected by the non profit organization [falling fruit](https://fallingfruit.org/about) 
 
-[falling fruit](https://fallingfruit.org/about) has amassed a huge global database of locations of public fruit. They have both a [web client](https://fallingfruit.org/) and mobile clients.
+[Falling fruit](https://fallingfruit.org/about) has amassed a huge global database of locations of public fruit. They have both a [web client](https://fallingfruit.org/) and mobile clients.
 
 My motivation for building another mobile client (currently iOS is in development and Android is not started) is two-fold. 
 
-**First** to build something I would use and am interested in. I take daily walks and often notice ripe fruit which could be respectfully picked (i.e. take one piece and leave more for others). I've often thought of building an app for myself to catalog my favorite neighborhood trees so I was delighted to find [falling fruit](https://fallingfruit.org/) which has done all the back-end work.
+**First** to build something I would use and am interested in. I take daily walks and often notice ripe fruit which could be respectfully picked (i.e. take one piece and leave more for others). I'd thought of building an app for myself to catalog my favorite neighborhood trees so I was inspired when I found [falling fruit](https://fallingfruit.org/) which had done all the back-end work.
 
-**Second** I'm a client-side software developer who loves building apps and wants to stay up to date on the latest technologies, frameworks, languages, design patterns, coding practices. I enjoy thinking about User Interface and how to make the experience as easy and intuitive as possible and am motivated to build an app I love to use. I'm currently building the iOS app using Swift, SwiftUI and UIKit. For the Android app, I'm debating Android native (Kotlin), React Native and Flutter.
+**Second** I'm a client-side software developer loves who building apps and learning while thinking about usability and simplicity. I'm currently building the iOS app using Swift, SwiftUI and UIKit.
 
 The iOS app has basic features but still needs polish and _sign-in/sign-up/forgot password_ functionality in order to _add, edit, rank and comment_ on fruit locations.
 

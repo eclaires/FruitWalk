@@ -114,7 +114,7 @@ struct FruitDetails: View {
             HStack {
                 Image(systemName: "pencil")
                 Text("Added: ")
-                if let date = date {
+                if let date {
                     Text(date, style: .date)
                 } else {
                     Text("unknown")
@@ -122,7 +122,7 @@ struct FruitDetails: View {
                 Spacer()
             }
             .font(.caption)
-            if let details = details {
+            if let details {
                 Text(details.fruitingDisplayString)
                     .font(.caption)
                     .bold()

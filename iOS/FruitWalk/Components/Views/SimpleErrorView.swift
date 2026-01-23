@@ -7,7 +7,7 @@
 import SwiftUI
 
 struct SimpleMessageView: View {
-    @Binding var showErrorMessage: Bool
+    @Binding var showMessage: Bool
     let title: String
     let message: String
     
@@ -19,7 +19,7 @@ struct SimpleMessageView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                 Button(action: {
-                    showErrorMessage = false
+                    showMessage = false
                 }) {
                     Image(systemName: "xmark.circle")
                         .foregroundColor(.primary)

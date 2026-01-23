@@ -39,21 +39,27 @@ struct SearchView: View {
                 }
             }
             Spacer()
-            
-            List(lookup.results, id: \.self, selection: $selection) {result in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(result.title)
-                        .font(.headline)
-                        .fontDesign(.rounded)
-                    Text(result.subTitle)
+            if lookup.results.isEmpty {
+                    Spacer()
+                    Text(query.isEmpty ? "Search for an address, select and see if there is fruit at that location." : "No mapped addresses found at \"\(query)\"")
+                        .foregroundColor(.gray)
+                    Spacer()
+            } else {
+                List(lookup.results, id: \.self, selection: $selection) {result in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(result.title)
+                            .font(.headline)
+                            .fontDesign(.rounded)
+                        Text(result.subTitle)
+                    }
                 }
+                .onChange(of: selection) {
+                    // stash the query for next time // TODO: stash a list for a drop down of previous searches
+                    storedQuery = query
+                }
+                .scrollContentBackground(.hidden)
+
             }
-            .onChange(of: selection) {
-                // stash the query for next time // TODO: stash a list for a drop down of previous searches
-                storedQuery = query
-            }
-            .scrollContentBackground(.hidden)
-            
         }
         .onAppear() {
             if let storedQuery = storedQuery {

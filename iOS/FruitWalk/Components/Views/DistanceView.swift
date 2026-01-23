@@ -26,11 +26,11 @@ struct DistanceView: View {
                     DirectionsButton(location: fruitLocation)
                 }
             }
-            if let start = startCoordinate {
+            if let startCoordinate {
                 HStack {
                     Image(systemName: "mappin.circle.fill")
                         .foregroundStyle(.red)
-                    DistanceLabel(start: start, end: fruitLocation.coordinate)
+                    DistanceLabel(start: startCoordinate, end: fruitLocation.coordinate)
                     Spacer()
                 }
             }

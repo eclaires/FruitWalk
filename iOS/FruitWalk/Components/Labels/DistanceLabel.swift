@@ -31,8 +31,8 @@ struct DistanceLabel: View {
     }
     
     func getDistanceString(_ meters: Double?) -> String {
-        if let m = meters {
-            return m.formattedDistance()
+        if let meters {
+            return meters.formattedDistance()
         } else {
             return ""
         }
@@ -40,10 +40,10 @@ struct DistanceLabel: View {
     
     func getIconString(_ meters: Double?) -> String {
         var imageString: String = "car.side"
-        if let meters = distanceMeters {
-            if WalkDistance.contains(meters) {
+        if let distanceMeters {
+            if WalkDistance.contains(distanceMeters) {
                 imageString = "figure.walk"
-            } else if BikeDistance.contains(meters) {
+            } else if BikeDistance.contains(distanceMeters) {
                 imageString = "bicycle"
             }
         }

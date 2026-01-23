@@ -86,7 +86,7 @@ struct MapViewOverlayModifier: ViewModifier {
                 if showErrorMessage, let error = lastError() {
                     let message = errorTitleAndDescription(error)
                     HStack {
-                        SimpleMessageView(showErrorMessage: $showErrorMessage, title: message.title, message: message.description)
+                        SimpleMessageView(showMessage: $showErrorMessage, title: message.title, message: message.description)
                     }
                     .padding(20)
                 }

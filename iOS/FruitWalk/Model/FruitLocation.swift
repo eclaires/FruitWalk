@@ -25,7 +25,7 @@ import Foundation
  }
  */
 
-struct FruitLocation : Codable, Equatable, Hashable {
+struct FruitLocation : Codable, Equatable, Hashable, Identifiable {
     var id = UUID()
     // server returned data
     private(set) var identifier: Int

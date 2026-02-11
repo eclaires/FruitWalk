@@ -33,4 +33,14 @@ extension FruitLocation: MapItem {
         return AnyView(content)
     }
     
+    func favoriteAnnotationView(count: Int, isSelected: Bool, hide: Bool) -> AnyView {
+        @ViewBuilder var content: some View {
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(Color.red)
+                    .foregroundColor(Color.red)
+                    .frame(width: 20, height: 20)
+        }
+        return AnyView(content)
+    }
+    
 }

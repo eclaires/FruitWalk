@@ -46,19 +46,27 @@ struct MapContentView: View {
                 let favorites = UserDefaults.standard.favorites
                 
                 // Add annotations for each location in the dataset
-                ForEach(mapStore.data.locations.indices) { index in
+                ForEach(mapStore.data.locations, id: \.identifier) { location in
                     // Logic to determine if and how the location should be shown
-                    let location = mapStore.data.locations[index]
                     let filterApplied = filter != nil || showFavoritesOnly
-                    let inFilter = (filter != nil && filter!.contains(location)) || (showFavoritesOnly && favorites[location.identifier] != nil)
+                    let isFavorite = favorites[location.identifier] != nil
+                    let inFilter = (filter != nil && filter!.contains(location)) || (isFavorite && showFavoritesOnly)
                     let displaySelected = location.identifier == selectedId || location.identifier == lastSelectedId
                     let hide = (filterApplied && !inFilter) && !displaySelected
                     
-                    Annotation(location.displayName, coordinate: location.coordinate) {
-                        location.annotationView(count: mapStore.data.locations.count, isSelected: displaySelected, hide: hide)
+                    if isFavorite {
+                        Annotation(location.displayName, coordinate: location.coordinate) {
+                            location.favoriteAnnotationView(count: mapStore.data.locations.count, isSelected: displaySelected, hide: false)
+                        }
+                        .annotationTitles(.visible)
+                        .tag(location.identifier)
+                    } else {
+                        Annotation(location.displayName, coordinate: location.coordinate) {
+                            location.annotationView(count: mapStore.data.locations.count, isSelected: displaySelected, hide: hide)
+                        }
+                        .annotationTitles(hide ? .hidden : (inFilter ? .visible : .automatic))
+                        .tag(location.identifier)
                     }
-                    .annotationTitles(hide ? .hidden : (inFilter ? .visible : .automatic))
-                    .tag(location.identifier)
                 }
             
                 // Add clustered annotations

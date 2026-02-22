@@ -8,6 +8,7 @@
 import Foundation
 
 /// RESTful API client using async/await and strong error handling
+@MainActor
 class APIService {
     static let shared = APIService()
     
@@ -59,3 +60,4 @@ class APIService {
         }
     }
 }
+

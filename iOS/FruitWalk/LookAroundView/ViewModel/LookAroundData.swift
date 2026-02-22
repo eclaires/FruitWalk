@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import MapKit
+@preconcurrency import MapKit
 
 /// ViewModel which contains a MKLookAroundScene for coordinates set in getScene()
 @MainActor @Observable class LookAroundData {
@@ -24,6 +24,7 @@ import MapKit
     /// the LookAroundData will be updated with either a new scene or a failed state
     /// - Parameter coordinate: the coordinate for the scene
     func getScene(from coordinate: CLLocationCoordinate2D?) async {
+        // assign properties for the search
         scene = nil
         self.coordinate = coordinate
         await loadScene()
@@ -35,6 +36,7 @@ import MapKit
                 let request = MKLookAroundSceneRequest(coordinate: coordinate)
                 do {
                     let scene = try await request.scene
+                    // if the coordinator is unchanged assign the value
                     if self.coordinate == coordinate {
                         if scene == nil {
                             self.error = APIError.lookAroundUnavailable
